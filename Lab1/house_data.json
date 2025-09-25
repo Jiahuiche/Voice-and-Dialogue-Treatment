@@ -358,7 +358,6 @@
       "commercial_use": "Yes",
       "terrace": "No",
       "location": "Barcelona"
-<<<<<<< HEAD:house_data.json
     },
     {
       "id": 26,
@@ -372,8 +371,6 @@
       "commercial_use": "Yes",
       "terrace": "Yes",
       "location": "Santa Coloma de Gramenet"
-=======
->>>>>>> 230d6e54d01d685d36d13ea71c1f7d7c1673660d:Lab1/house_data.json
     }
   ]
 }

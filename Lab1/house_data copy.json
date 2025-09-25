@@ -1,6 +1,5 @@
 {
   "start_message": "Welcome to the House Buying Assistant!",
-  "no_suitable_houses_message": "No suitable houses found based on your preferences.",
   "end_message": "Thank you for using the House Buying Assistant. Goodbye!",
   "questions": [
     {
@@ -37,49 +36,7 @@
 	  "prompt": "Enter your choice",  
     "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
       "answer_key": "location"
-    },
-  {
-    "question": "Do you want a house for buying or renting?",
-    "type": "multichoice",
-    "prompt": "Type 'sale' to buy or 'rent' to rent:",
-    "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
-    "answer_key": "type"
-  },
-  {
-    "question": "What is your household's monthly income?",
-    "type": "numerical",
-    "prompt": "Enter your monthly income in euros:",
-    "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
-    "answer_key": "income"
-  },
-  {
-    "question": "From which floor would you like to live?",
-    "type": "numerical",
-    "prompt": "Enter the minimum floor number (0 = ground floor):",
-    "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
-    "answer_key": "floor"
-  },
-  {
-    "question": "Do you want the house to have a terrace?",
-    "type": "multichoice",
-    "prompt": "Answer 'Yes' or 'No':",
-    "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
-    "answer_key": "terrace"
-  },
-  {
-    "question": "Do you want the house to have an elevator?",
-    "type": "multichoice",
-    "prompt": "Answer 'Yes' or 'No':",
-    "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
-    "answer_key": "elevator"
-  },
-  {
-    "question": "Do you need the house to be suitable for commercial use?",
-    "type": "multichoice",
-    "prompt": "Answer 'Yes' or 'No':",
-    "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
-    "answer_key": "commercial_use"
-  }
+    }
   ],
   "houses": [
     {
