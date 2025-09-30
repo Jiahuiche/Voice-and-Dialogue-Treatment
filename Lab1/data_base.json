@@ -2,7 +2,7 @@
   "start_message": "Welcome to the House Buying Assistant! My name is Bothome, and I'm here to help you find your ideal house. You can type 'quite', and only 'quite' at any time to exit the program.",
   "no_suitable_houses_message": "No suitable houses found based on your preferences.",
   "end_message": "Thank you for using the House Buying Assistant. Goodbye!",
-  "connectors":[{"yes" : "Yes, If you"}, {}]
+  "connectors":[{"yes" : "Yes, If you"}, {}],
   "questions": [
     {
       "question": "How many bedrooms do you need?",
