@@ -1,0 +1,153 @@
+################ Exemple 2 ################
+
+Chatbot: Welcome to the House Buying Assistant! My name is Bothome, and I'm here to help you find your ideal house. You can type 'quite', and only 'quite', at any time to exit the program. May I have your name? If no, just click the 'Enter' or 'Space' button.
+Chatbot: Welcome Jiahao! Let's find your perfect home.
+Chatbot: How many bedrooms do you need?
+User: I need 3 beedroms
+Chatbot: Great choice, Jiahao!
+Chatbot: How many bathrooms do you need?
+User: I would like at least 2 bathrooms
+Chatbot: Great choice, Jiahao!
+Chatbot: What is your budget for the house?
+User: Exemple of an invalid answer
+Chatbot: Invalid input. Please try again or write 'quite' to exit.
+User: My budget is 500k euros
+Chatbot: Excellent, Jiahao!
+Chatbot: How many square meters do you need?
+User: 70 would be great
+Chatbot: Which city or neighborhood would you prefer?
+Options: Esplugues de Llobregat, Santa Coloma de Gramenet, Barcelona, L'Hospitalet de Llobregat
+User: Barcelona
+Chatbot: Do you want a house for buying or renting?
+Options: rent, sale
+User: For sale
+Chatbot: Invalid input. Please try again or write 'quite' to exit.
+User: sale
+Chatbot: Excellent, Jiahao!
+Chatbot: From which floor would you like to live?
+User: Any
+Chatbot: Great choice, Jiahao!
+Chatbot: Do you want the house to have a terrace?
+Options: Yes, No
+User: 
+Chatbot: That's helpful, Jiahao!
+Chatbot: Do you want the house to have an elevator?
+Options: No, Yes
+User: Any
+Chatbot: Perfect, Jiahao! Let me ask you another question.
+Chatbot: Do you need the house to be suitable for commercial use?
+Options: Yes, No
+User: 
+Chatbot: Perfect, Jiahao! Let me ask you another question.
+
+Jiahao, based on your preferences, here are the most suitable houses:
+🏠 House ID: 20
+   Type: sale
+   Bedrooms: 3, Bathrooms: 2
+   Price: 360k, Size: 90 m²
+   Location: Barcelona
+   Floor: 2, Elevator: No
+   Terrace: Yes, Commercial use: No
+
+🏠 House ID: 21
+   Type: sale
+   Bedrooms: 4, Bathrooms: 2
+   Price: 480k, Size: 120 m²
+   Location: Barcelona
+   Floor: 3, Elevator: Yes
+   Terrace: Yes, Commercial use: Yes
+
+🏠 House ID: 23
+   Type: sale
+   Bedrooms: 3, Bathrooms: 2
+   Price: 285k, Size: 95 m²
+   Location: Barcelona
+   Floor: 1, Elevator: Yes
+   Terrace: No, Commercial use: No
+
+Chatbot: Thank you for using our service, Jiahao! I hope we helped you find your perfect home. Thank you for using the House Buying Assistant. Goodbye!
+
+################ Exemple 2 ################
+
+Chatbot: Welcome to the House Buying Assistant! My name is Bothome, and I'm here to help you find your ideal house. You can type 'quite', and only 'quite', at any time to exit the program. May I have your name? If no, just click the 'Enter' or 'Space' button.
+Chatbot: Welcome Jiahui! Let's find your perfect home.
+Chatbot: How many bedrooms do you need?
+User: 2 bedrooms is enough
+Chatbot: Thanks for that information, Jiahui!
+Chatbot: How many bathrooms do you need?
+User: 1 is fine
+Chatbot: Wonderful, Jiahui!
+Chatbot: What is your budget for the house?
+User: 1k euros
+Chatbot: Got it, Jiahui!
+Chatbot: How many square meters do you need?
+User: at least 50
+Chatbot: Which city or neighborhood would you prefer?
+Options: Esplugues de Llobregat, Santa Coloma de Gramenet, Barcelona, L'Hospitalet de Llobregat
+User: Barcelona
+Chatbot: Do you want a house for buying or renting?
+Options: rent, sale
+User: rent
+Chatbot: Perfect, Jiahui! Let me ask you another question.
+Chatbot: What is your household's monthly income?
+User: 1k
+Chatbot: Great choice, Jiahui!
+Chatbot: Sorry Jiahui, No suitable houses found based on your preferences.
+Chatbot: Thank you for using our service, Jiahui! I hope we helped you find your perfect home. Thank you for using the House Buying Assistant. Goodbye!
+
+################ Exemple 3 ################
+
+Chatbot: Welcome to the House Buying Assistant! My name is Bothome, and I'm here to help you find your ideal house. You can type 'quite', and only 'quite', at any time to exit the program. May I have your name? If no, just click the 'Enter' or 'Space' button.
+Chatbot: Nice to meet you, Jiahao!
+Chatbot: How many bedrooms do you need?
+User: Any
+Chatbot: How many bathrooms do you need?
+User: 
+Chatbot: What is your budget for the house?
+User: 99k
+Chatbot: How many square meters do you need?
+User: 30, please
+Chatbot: Which city or neighborhood would you prefer?
+Options: Esplugues de Llobregat, Santa Coloma de Gramenet, Barcelona, L'Hospitalet de Llobregat
+User: Exemple of an invalid input
+Chatbot: Invalid input. Please try again or write 'quite' to exit.
+User: Quite
+Goodbye Jiahao! Thank you for using the House Buying Assistant. Goodbye!
+
+################ Exemple 4 ################
+
+Chatbot: Welcome to the House Buying Assistant! My name is Bothome, and I'm here to help you find your ideal house. You can type 'quite', and only 'quite', at any time to exit the program. May I have your name? If no, just click the 'Enter' or 'Space' button.
+Chatbot: How many bedrooms do you need?
+User: 3
+Chatbot: How many bathrooms do you need?
+User: 1
+Chatbot: What is your budget for the house?
+User: 200k
+Chatbot: How many square meters do you need?
+User: I need 50
+Chatbot: Which city or neighborhood would you prefer?
+Options: Esplugues de Llobregat, Santa Coloma de Gramenet, Barcelona, L'Hospitalet de Llobregat
+User: Barcelona
+Chatbot: Do you want a house for buying or renting?
+Options: rent, sale
+User: sale
+Chatbot: No suitable houses found based on your preferences.
+Chatbot: Thank you for using the House Buying Assistant. Goodbye!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
