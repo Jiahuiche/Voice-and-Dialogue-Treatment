@@ -1,7 +1,22 @@
 {
-  "start_message": "Welcome to the House Buying Assistant! My name is Bothome, and I'm here to help you find your ideal house. You can type 'quite', and only 'quite' at any time to exit the program.",
+  "start_message": "Welcome to the House Buying Assistant! My name is Bothome, and I'm here to help you find your ideal house. You can type 'quite', and only 'quite', at any time to exit the program. May I have your name? If no, just click the 'Enter' or 'Space' button.",
   "no_suitable_houses_message": "No suitable houses found based on your preferences.",
   "end_message": "Thank you for using the House Buying Assistant. Goodbye!",
+  "personalized_messages": [
+    "Great choice, {name}!",
+    "Perfect, {name}! Let me ask you another question.",
+    "Excellent, {name}!",
+    "That's helpful, {name}!",
+    "Got it, {name}!",
+    "Thanks for that information, {name}!",
+    "Wonderful, {name}!"
+  ],
+  "name_prompts": [
+    "Nice to meet you, {name}!",
+    "Hello {name}, it's a pleasure to help you!",
+    "Welcome {name}! Let's find your perfect home.",
+    "Hi {name}! I'm excited to help you find a great house."
+  ],
   "connectors":[{"yes" : "Yes, If you"}, {}],
   "questions": [
     {
@@ -413,7 +428,7 @@
       "type": "rent",
       "bedrooms": "4",
       "bathrooms": "2",
-      "price": "250k",
+      "price": "2500",
       "square_meters": "90",
       "floor": "5",
       "elevator": "Yes",
