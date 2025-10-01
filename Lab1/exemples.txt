@@ -1,9 +1,9 @@
-################ Exemple 2 ################
+################ Exemple 1 ################
 
 Chatbot: Welcome to the House Buying Assistant! My name is Bothome, and I'm here to help you find your ideal house. You can type 'quite', and only 'quite', at any time to exit the program. May I have your name? If no, just click the 'Enter' or 'Space' button.
 Chatbot: Welcome Jiahao! Let's find your perfect home.
 Chatbot: How many bedrooms do you need?
-User: I need 3 beedroms
+User: I need 3 bedrooms
 Chatbot: Great choice, Jiahao!
 Chatbot: How many bathrooms do you need?
 User: I would like at least 2 bathrooms
@@ -21,7 +21,7 @@ User: Barcelona
 Chatbot: Do you want a house for buying or renting?
 Options: rent, sale
 User: For sale
-Chatbot: Invalid input. Please try again or write 'quite' to exit.
+Chatbot: Please choose either 'sale' or 'rent' as shown in the options above, or type 'quite' to exit.
 User: sale
 Chatbot: Excellent, Jiahao!
 Chatbot: From which floor would you like to live?

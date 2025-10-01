@@ -51,14 +51,14 @@
       "question": "Which city or neighborhood would you prefer?",
 	  "type": "multichoice",
 	  "prompt": "Enter your choice",  
-    "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
+      "invalid_response": "Please select from the available cities/neighborhoods shown above, or type 'quite' to exit.",
       "answer_key": "location"
     },
   {
     "question": "Do you want a house for buying or renting?",
     "type": "multichoice",
     "prompt": "Type 'sale' to buy or 'rent' to rent:",
-    "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
+    "invalid_response": "Please choose either 'sale' or 'rent' as shown in the options above, or type 'quite' to exit.",
     "answer_key": "type"
   },
   {
@@ -79,21 +79,21 @@
     "question": "Do you want the house to have a terrace?",
     "type": "multichoice",
     "prompt": "Answer 'Yes' or 'No':",
-    "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
+    "invalid_response": "Please answer with 'Yes' or 'No' only, or type 'quite' to exit.",
     "answer_key": "terrace"
   },
   {
     "question": "Do you want the house to have an elevator?",
     "type": "multichoice",
     "prompt": "Answer 'Yes' or 'No':",
-    "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
+    "invalid_response": "Please respond with either 'Yes' or 'No' as indicated, or type 'quite' to exit.",
     "answer_key": "elevator"
   },
   {
     "question": "Do you need the house to be suitable for commercial use?",
     "type": "multichoice",
     "prompt": "Answer 'Yes' or 'No':",
-    "invalid_response": "Invalid input. Please try again or write 'quite' to exit.",
+    "invalid_response": "Please select 'Yes' or 'No' from the available choices, or type 'quite' to exit.",
     "answer_key": "commercial_use"
   }
   ],
