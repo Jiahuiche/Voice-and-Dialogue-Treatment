@@ -134,6 +134,48 @@ User: sale
 Chatbot: No suitable houses found based on your preferences.
 Chatbot: Thank you for using the House Buying Assistant. Goodbye!
 
+################ Exemple 5 ################
+
+Chatbot: Welcome to the House Buying Assistant! My name is Bothome, and I'm here to help you find your ideal house. You can type 'quite', and only 'quite', at any time to exit the program. May I have your name? If no, just click the 'Enter' or 'Space' button.
+Chatbot: How many bedrooms do you need?
+User: 2
+Chatbot: How many bathrooms do you need?
+User: 1
+Chatbot: What is your budget for the house?
+User: 200k
+Chatbot: How many square meters do you need?
+User: 50
+Chatbot: Which city or neighborhood would you prefer?
+Options: Santa Coloma de Gramenet, Barcelona, Esplugues de Llobregat, L'Hospitalet de Llobregat
+User: Barcelona
+Chatbot: Do you want a house for buying or renting?
+Options: rent, sale
+User: rent
+Chatbot: What is your household's monthly income?
+User: 3k
+Chatbot: From which floor would you like to live?
+User: any
+Chatbot: Do you want the house to have a terrace?
+Options: No, Yes
+User: No
+Chatbot: Do you want the house to have an elevator?
+Options: No, Yes
+User: 
+Chatbot: Do you need the house to be suitable for commercial use?
+Options: No, Yes
+User: No
+
+Based on your preferences, here are the most suitable houses:
+🏠 House ID: 19
+   Type: rent
+   Bedrooms: 3, Bathrooms: 1
+   Price: 600, Size: 75 m²
+   Location: Barcelona
+   Floor: 1, Elevator: No
+   Terrace: Yes, Commercial use: Yes
+
+Chatbot: Thank you for using the House Buying Assistant. Goodbye!
+
 
 
 
