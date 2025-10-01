@@ -1,5 +1,5 @@
 {
-  "start_message": "Welcome to the House Buying Assistant! My name is Bothome, and I'm here to help you find your ideal house. You can type 'quite', and only 'quite', at any time to exit the program. May I have your name? If no, just click the 'Enter' or 'Space' button.",
+  "start_message": "Welcome to the House Buying Assistant! My name is Bothome, and I'm here to help you find your ideal house. You can type 'quite', and only 'quite', at any time to exit the program.\nMay I have your name? If no, just click the 'Enter' button.",
   "no_suitable_houses_message": "No suitable houses found based on your preferences.",
   "end_message": "Thank you for using the House Buying Assistant. Goodbye!",
   "personalized_messages": [
