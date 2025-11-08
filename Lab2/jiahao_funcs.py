@@ -79,7 +79,7 @@ def remove_values_and_indices(input_list, values_to_remove, other_list):
     #print(f'Remaining {len(cleaned_other_list)} samples')
     return cleaned_list, np.array(cleaned_other_list)
 
-def provar_embeddings(train_pad_sequences, train_encoded_labels, 
+def provar_embeddings(model_sin_embedding, train_pad_sequences, train_encoded_labels, 
                       val_pad_sequences, val_encoded_labels, vocab_size, num_classes, 
                       batch_size, epochs,
                       maxlen, embedding_dims, patience=5, runs=5):
@@ -98,9 +98,7 @@ def provar_embeddings(train_pad_sequences, train_encoded_labels,
 
             model = Sequential()
             model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=maxlen))
-            model.add(GlobalMaxPooling1D(data_format='channels_last'))
-            model.add(Dense(128, activation='relu'))
-            model.add(Dense(num_classes, activation='softmax'))
+            model.add(model_sin_embedding)
 
             metrics = tf.keras.metrics.F1Score(average='macro')
             model.compile(
