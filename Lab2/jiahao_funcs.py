@@ -42,6 +42,17 @@ def preprocess(train_data, val_data, test_data, num_words=500):
     
     values_to_remove = ['day_name','airfare+flight','flight+airline','flight_no+airline', 'flight']
 
+    def remove_values_and_indices(input_list, values_to_remove, other_list):
+        #print(f'Initial {len(input_list)} samples')
+        #print(f'Initial {len(other_list)} samples')
+        indices_to_remove = [idx for idx, item in enumerate(input_list) if item in values_to_remove]
+        #print(f'Removing {len(indices_to_remove)} samples')
+        cleaned_list = [item for item in input_list if item not in values_to_remove]
+        #print(f'Remaining {len(cleaned_list)} samples')
+        cleaned_other_list = [item for idx, item in enumerate(other_list) if idx not in indices_to_remove]
+        #print(f'Remaining {len(cleaned_other_list)} samples')
+        return cleaned_list, np.array(cleaned_other_list)
+
     # Validation data
     val_sentences = list(val_data[0])
     val_sequences = tokenizer.texts_to_sequences(val_sentences)
@@ -64,29 +75,111 @@ def preprocess(train_data, val_data, test_data, num_words=500):
     test_labels, test_pad_sequences = remove_values_and_indices(test_labels, values_to_remove, test_pad_sequences)
     test_encoded_labels = to_categorical(label_encoder.transform(test_labels), num_classes)
 
-    return (train_pad_sequences, train_encoded_labels,
-            val_pad_sequences, val_encoded_labels,
-            test_pad_sequences, test_encoded_labels, num_classes, maxlen,tokenizer)
+    data = {
+        'train': (train_pad_sequences, train_encoded_labels),
+        'val': (val_pad_sequences, val_encoded_labels),
+        'test': (test_pad_sequences, test_encoded_labels),
+        'num_classes': num_classes,
+        'maxlen': maxlen,
+        'vocab_size': len(tokenizer.word_index)
+    }
+    return data
 
-def remove_values_and_indices(input_list, values_to_remove, other_list):
-    #print(f'Initial {len(input_list)} samples')
-    #print(f'Initial {len(other_list)} samples')
-    indices_to_remove = [idx for idx, item in enumerate(input_list) if item in values_to_remove]
-    #print(f'Removing {len(indices_to_remove)} samples')
-    cleaned_list = [item for item in input_list if item not in values_to_remove]
-    #print(f'Remaining {len(cleaned_list)} samples')
-    cleaned_other_list = [item for idx, item in enumerate(other_list) if idx not in indices_to_remove]
-    #print(f'Remaining {len(cleaned_other_list)} samples')
-    return cleaned_list, np.array(cleaned_other_list)
+def train_model(model, train_pad_sequences, train_encoded_labels, 
+                val_pad_sequences, val_encoded_labels, class_weights=None, batch_size=32, epochs=30, patience=5):
+    metrics = tf.keras.metrics.F1Score(average='macro')
+    model.compile(
+        optimizer='adam',
+        loss='categorical_crossentropy',
+        metrics=[metrics]
+    )
 
-def provar_embeddings(train_pad_sequences, train_encoded_labels, 
-                      val_pad_sequences, val_encoded_labels, vocab_size, num_classes, 
-                      batch_size, epochs,
-                      maxlen, embedding_dims, patience=5, runs=5):
+    early_stop = EarlyStopping(
+        monitor='val_loss',        # o 'val_f1_score'
+        patience= patience,                # detener tras 3 épocas sin mejora
+        restore_best_weights=True,
+        verbose=0
+    )
+
+    history = model.fit(
+        train_pad_sequences,
+        train_encoded_labels,
+        batch_size=batch_size,
+        epochs=epochs,
+        validation_data=(val_pad_sequences, val_encoded_labels),
+        callbacks=[early_stop],
+        verbose=0,
+        class_weight=class_weights
+    )
+    return history
+
+def provar_num_words(model_build, train_data, val_data, test_data, 
+                     num_words_list, batch_size=32, epochs=30, patience=5, runs=5):
+    '''Prueba diferentes valores de num_words para el tokenizer y grafica la loss y la metrica f1.'''
+    results = {}
+    for num_words in num_words_list:
+        print(f'-------Running num_words={num_words}  ({runs} runs)...---------')
+        data = preprocess(train_data, val_data, test_data, num_words=num_words)
+        train_pad_sequences, train_encoded_labels = data['train']
+        val_pad_sequences, val_encoded_labels = data['val']
+        vocab_size = data['vocab_size']
+        maxlen = data['maxlen']
+        num_classes = data['num_classes']
+
+        accum = {}  # recolecta listas de arrays (runs, epochs) por clave
+        for run in range(runs):
+            tf.random.set_seed(run)
+            np.random.seed(run)
+
+            model = model_build(num_classes, vocab_size, maxlen)
+
+            history = train_model(model, train_pad_sequences, train_encoded_labels,
+                                  val_pad_sequences, val_encoded_labels,
+                                  batch_size=batch_size, epochs=epochs, patience=patience)
+
+            # Run report
+            for k, v in history.history.items():
+                accum.setdefault(k, []).append(np.array(v))
+
+            print(f'  run {run+1}/{runs} done | last val_loss={history.history["val_loss"][-1]:.4f}')
+
+        # promediar por key -> numpy arrays (epochs,), respetando EarlyStopping
+        averaged = {}
+        for k, arrs in accum.items():
+            max_len = max(a.shape[0] for a in arrs)
+            stacked = np.full((len(arrs), max_len), np.nan, dtype=float)
+            for i, a in enumerate(arrs):
+                stacked[i, :a.shape[0]] = a
+            averaged[k] = np.nanmean(stacked, axis=0)  # media ignorando NaNs
+
+        results[num_words] = averaged
+
+        # calcular último val_loss válido (puede haber NaNs si ninguna run llegó a la última época)
+        val_loss_avg = averaged.get("val_loss")
+        if val_loss_avg is not None:
+            finite_idx = np.where(~np.isnan(val_loss_avg))[0]
+            last_val_loss = val_loss_avg[finite_idx[-1]] if finite_idx.size else np.nan
+        else:
+            last_val_loss = np.nan
+
+        print(f'Finished num_words={num_words}  |  averaged last val_loss={last_val_loss:.4f}')
+    plot(results, num_words_list, runs)
+    return results
+
+
+def provar_embeddings(model_build, train_data, val_data, test_data, num_words,
+                      batch_size, epochs, embedding_dims, patience=5, runs=5):
     '''Prueba diferentes dimensiones de embedding, promedia 'runs' ejecuciones,
     guarda histories promediados y grafica la evolución (train vs val) por epoch.
     Devuelve: dict: {embedding_dim: averaged_history} donde cada value es np.array (epochs,)
     '''
+    data = preprocess(train_data, val_data, test_data, num_words=num_words)
+    train_pad_sequences, train_encoded_labels = data['train']
+    val_pad_sequences, val_encoded_labels = data['val']
+    vocab_size = data['vocab_size']
+    maxlen = data['maxlen']
+    num_classes = data['num_classes']
+
     results = {}
 
     for embedding_dim in embedding_dims:
@@ -98,35 +191,13 @@ def provar_embeddings(train_pad_sequences, train_encoded_labels,
 
             model = Sequential()
             model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=maxlen))
-            model.add(GlobalMaxPooling1D(data_format='channels_last'))
-            model.add(Dense(128, activation='relu'))
-            model.add(Dense(num_classes, activation='softmax'))
+            model = model_build(model, num_classes)
 
-            metrics = tf.keras.metrics.F1Score(average='macro')
-            model.compile(
-                optimizer='adam',
-                loss='categorical_crossentropy',
-                metrics=[metrics]
-            )
+            history = train_model(model, train_pad_sequences, train_encoded_labels,
+                                  val_pad_sequences, val_encoded_labels,
+                                  batch_size=batch_size, epochs=epochs, patience=patience)
 
-            early_stop = EarlyStopping(
-                monitor='val_loss',        # o 'val_f1_score'
-                patience= patience,                # detener tras 3 épocas sin mejora
-                restore_best_weights=True,
-                verbose=0
-            )
-
-            history = model.fit(
-                train_pad_sequences,
-                train_encoded_labels,
-                batch_size=batch_size,
-                epochs=epochs,
-                validation_data=(val_pad_sequences, val_encoded_labels),
-                callbacks=[early_stop],
-                verbose=0
-            )
-
-            # acumular arrays numpy por clave
+            # Run report
             for k, v in history.history.items():
                 accum.setdefault(k, []).append(np.array(v))
 
@@ -153,6 +224,11 @@ def provar_embeddings(train_pad_sequences, train_encoded_labels,
 
         print(f'Finished embedding_dim={embedding_dim}  |  averaged last val_loss={last_val_loss:.4f}')
 
+    plot(results, embedding_dims, runs)
+
+    return results
+
+def plot(results, names, runs):
     # detectar métrica distinta de loss
     sample_hist = next(iter(results.values()))
     metric_keys = [k for k in sample_hist.keys() if k not in ('loss', 'val_loss')]
@@ -163,7 +239,7 @@ def provar_embeddings(train_pad_sequences, train_encoded_labels,
 
     # Graficar loss (train continua, val discontinua), mismo color por dimensión
     plt.figure(figsize=(10, 4))
-    for i, dim in enumerate(embedding_dims):
+    for i, dim in enumerate(names):
         hist = results.get(dim)
         if hist is None:
             continue
@@ -182,7 +258,7 @@ def provar_embeddings(train_pad_sequences, train_encoded_labels,
     have_metric = metric and any((metric in hist and val_metric in hist) for hist in results.values())
     if have_metric:
         plt.figure(figsize=(10, 4))
-        for i, dim in enumerate(embedding_dims):
+        for i, dim in enumerate(names):
             hist = results.get(dim)
             if hist is None:
                 continue
@@ -199,5 +275,93 @@ def provar_embeddings(train_pad_sequences, train_encoded_labels,
         plt.show()
     else:
         print('No se encontró métrica distinta de loss en los histories. Sólo se graficó loss.')
+
+#Para el balanceo de clases
+from sklearn.utils.class_weight import compute_class_weight
+import numpy as np
+def calculate_class_weights(y):
+    """Calculate class weights to handle class imbalance. The formula used is:
+
+    class_weight = total_samples / (num_classes * class_count)
+
+    input: numpy array of one-hot encoded labels
+    output: dictionary mapping class indices to weights
+    """
+
+    # Convert one-hot encoded labels to class indices
+    y_indices = np.argmax(y, axis=1)
+
+    # Get unique classes
+    classes = np.unique(y_indices)
+
+    # Compute class weights
+    class_weights = compute_class_weight(class_weight='balanced', classes=classes, y=y_indices)
+
+    # Create a dictionary mapping class indices to weights
+    class_weight_dict = {i: weight for i, weight in zip(classes, class_weights)}
+    return class_weight_dict
+
+def probar_class_weights(model_build, train_data, val_data, test_data, num_words,
+                      batch_size, epochs, class_weights_list, patience=5, runs=5):
+    '''Prueba diferentes dimensiones de embedding, promedia 'runs' ejecuciones,
+    guarda histories promediados y grafica la evolución (train vs val) por epoch.
+    Devuelve: dict: {embedding_dim: averaged_history} donde cada value es np.array (epochs,)
+    '''
+    data = preprocess(train_data, val_data, test_data, num_words=num_words)
+    train_pad_sequences, train_encoded_labels = data['train']
+    val_pad_sequences, val_encoded_labels = data['val']
+    vocab_size = data['vocab_size']
+    maxlen = data['maxlen']
+    num_classes = data['num_classes']
+
+    results = {}
+
+    for class_weights in class_weights_list:
+        print(f'-------Running class_weights={class_weights}  ({runs} runs)...---------')
+        accum = {}  # recolecta listas de arrays (runs, epochs) por clave
+        for run in range(runs):
+            tf.random.set_seed(run)
+            np.random.seed(run)
+
+            model = model_build(num_classes, vocab_size, maxlen)
+
+            history = train_model(model, train_pad_sequences, train_encoded_labels,
+                                  val_pad_sequences, val_encoded_labels,
+                                  batch_size=batch_size, epochs=epochs, patience=patience,
+                                  class_weights=class_weights)
+
+            # Run report
+            for k, v in history.history.items():
+                accum.setdefault(k, []).append(np.array(v))
+
+            print(f'  run {run+1}/{runs} done | last val_loss={history.history["val_loss"][-1]:.4f}')
+
+        # promediar por key -> numpy arrays (epochs,), respetando EarlyStopping
+        averaged = {}
+        for k, arrs in accum.items():
+            max_len = max(a.shape[0] for a in arrs)
+            stacked = np.full((len(arrs), max_len), np.nan, dtype=float)
+            for i, a in enumerate(arrs):
+                stacked[i, :a.shape[0]] = a
+            averaged[k] = np.nanmean(stacked, axis=0)  # media ignorando NaNs
+        keys = ['no_class_weights', 'with_class_weights']
+        if class_weights is None:
+            key = keys[0]
+            results[key] = averaged
+        else:
+            key = keys[1]
+            results[key] = averaged
+
+        # calcular último val_loss válido (puede haber NaNs si ninguna run llegó a la última época)
+        val_loss_avg = averaged.get("val_loss")
+        if val_loss_avg is not None:
+            finite_idx = np.where(~np.isnan(val_loss_avg))[0]
+            last_val_loss = val_loss_avg[finite_idx[-1]] if finite_idx.size else np.nan
+        else:
+            last_val_loss = np.nan
+
+        print(f'Finished embedding_dim={key}  |  averaged last val_loss={last_val_loss:.4f}')
+
+    plot(results, keys, runs)
 
     return results
