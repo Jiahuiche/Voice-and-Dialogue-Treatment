@@ -13,7 +13,25 @@ from tensorflow.keras.layers import Embedding, GlobalMaxPooling1D, Dense
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import f1_score
+
+from funciones_H import preprocess_text
 ########### Layers ##############
+# Definir capa personalizada para añadir Positional Encoding
+class AddPositionalEncoding(keras.layers.Layer):
+    """
+    Añade codificación posicional a los embeddings de salida del LSTM.
+    Similar a TokenAndPositionEmbedding pero solo añade la parte posicional.
+    """
+    def __init__(self, maxlen, embed_dim):
+        super().__init__()
+        self.pos_emb = keras.layers.Embedding(input_dim=maxlen, output_dim=embed_dim)
+
+    def call(self, inputs):
+        maxlen = tf.shape(inputs)[1]  # Longitud de secuencia
+        positions = tf.range(start=0, limit=maxlen, delta=1)
+        position_embeddings = self.pos_emb(positions)
+        return inputs + position_embeddings
+    
 class TransformerBlock(keras.layers.Layer):
     def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1): #num_heads no es full attention
         super().__init__()
@@ -56,6 +74,7 @@ class TokenAndPositionEmbedding(keras.layers.Layer):
         return token_embeddings + position_embeddings
     
 #################### Preprocess ########################
+
 def preprocess_entity_recognition(train_data: pd.DataFrame, val_data: pd.DataFrame, test_data: pd.DataFrame, num_words: int = None) -> Dict[str, np.ndarray|int]:
     ################## Separate sentences and labels ##############
     #Remove quotes from sentences and labels
@@ -64,15 +83,18 @@ def preprocess_entity_recognition(train_data: pd.DataFrame, val_data: pd.DataFra
     test_data = test_data.map(lambda x: x.replace('"', ''))
     # Train data
     train_sentences = train_data[0].tolist()
+    train_sentences = [preprocess_text(s, use_stemming=True) for s in train_sentences]
     train_labels = train_data[1].tolist()
     # Validation data
     val_sentences = val_data[0].tolist()
+    val_sentences = [preprocess_text(s, use_stemming=True) for s in val_sentences]
     val_labels = val_data[1].tolist()
     # Test data
     test_sentences = test_data[0].tolist()
+    test_sentences = [preprocess_text(s, use_stemming=True) for s in test_sentences]    
     test_labels = test_data[1].tolist()
     ######## Tokenization and Padding of sentences ########
-    tokenizer = Tokenizer()
+    tokenizer = Tokenizer(num_words)
     tokenizer.fit_on_texts(train_sentences)
     # Train data
     train_sequences = tokenizer.texts_to_sequences(train_sentences)
@@ -141,13 +163,13 @@ def preprocess_entity_recognition(train_data: pd.DataFrame, val_data: pd.DataFra
         'test_y': test_labels_one_hot,
         'num_classes': len(label_encoder.classes_),
         'maxlen': max_sequence_length,
-        'vocab_size': len(tokenizer.word_index)+1,
+        'vocab_size': num_words +1,
         'seq_lens': seq_lens
     }
     return data
 ################################### Model training ################################
 def train_model(model: tf.keras.Model, train_pad_sequences: np.ndarray, train_encoded_labels: np.ndarray, 
-                val_pad_sequences: np.ndarray, val_encoded_labels: np.ndarray, class_weights: dict = None, 
+                val_pad_sequences: np.ndarray, val_encoded_labels: np.ndarray, sample_weights: list[list[float]] = None, 
                 batch_size: int = 32, epochs: int = 30, patience: int = 5)-> tf.keras.callbacks.History:
     '''
     Train the model with EarlyStopping based on validation loss.
@@ -183,13 +205,10 @@ def train_model(model: tf.keras.Model, train_pad_sequences: np.ndarray, train_en
         epochs=epochs,
         validation_data=(val_pad_sequences, val_encoded_labels),
         callbacks=[early_stop],
-        verbose=0,
-        class_weight=class_weights)
+        verbose=1,
+        sample_weight=sample_weights)
     return history
-def predict_model (model, seq_lens, train_X, train_y, val_X, val_y ):
-    train_y_pred = model.predict(train_X)
-    val_y_pred = model.predict(val_X)
-    def preds_to_index(preds, seq_lens):
+def preds_to_index(preds, seq_lens):
         '''
         Turn predictions to numerical indexes, flatten the sentences and discard padding.
         '''
@@ -198,85 +217,17 @@ def predict_model (model, seq_lens, train_X, train_y, val_X, val_y ):
             for l in range(seq_len):
                 idx_preds.append(np.argmax(pred[l]))
         return idx_preds
-    
-    train_y_idx = preds_to_index (train_y, seq_lens["train"])
-    val_y_idx = preds_to_index (val_y, seq_lens["val"])
+
+def predict_model (model, seq_lens, train_X, train_y, val_X, val_y ):
+    train_y_pred = model.predict(train_X)
+    val_y_pred = model.predict(val_X)
+    train_y_idx = preds_to_index(train_y, seq_lens["train"])
+    val_y_idx = preds_to_index(val_y, seq_lens["val"])
     train_y_pred_idx = preds_to_index(train_y_pred, seq_lens["train"])
     val_y_pred_idx = preds_to_index(val_y_pred, seq_lens["val"])
     train_f1 = f1_score(train_y_idx, train_y_pred_idx, average='macro', zero_division=1.0 )
     val_f1 = f1_score(val_y_idx, val_y_pred_idx, average='macro', zero_division=1.0 )
     return train_f1, val_f1
-
-def provar_num_words(model_build: callable, preprocess: callable, train_data: pd.DataFrame, val_data: pd.DataFrame, 
-                     test_data: pd.DataFrame, num_words_list: list[int], batch_size: int = 32, epochs: int = 30, 
-                     patience: int = 5, runs: int = 5) -> Dict[int, Dict[str, np.ndarray]]:
-    '''
-    Prueba diferentes cantidades de palabras (num_words), promedia 'runs' ejecuciones,
-    guarda histories promediados y grafica la evolución (train vs val) por epoch.
-    Devuelve: dict: {num_words: averaged_history} donde cada value es np.array (epochs,)
-    '''
-    results = {}
-    f1_average = {}
-    train_f1_list = [] #list with final f1 of each run
-    val_f1_list = [] 
-    for num_words in num_words_list:
-        print(f'-------Running num_words={num_words}  ({runs} runs)...---------')
-        data = preprocess(train_data, val_data, test_data, num_words=num_words)
-        train_pad_sequences, train_encoded_labels = data['train_X'], data['train_y']
-        val_pad_sequences, val_encoded_labels = data['val_X'], data['val_y']
-        vocab_size = data['vocab_size']
-        maxlen = data['maxlen']
-        num_classes = data['num_classes']
-        seq_lens = data['seq_lens']
-
-        accum = {}  # recolecta listas de arrays (runs, epochs) por clave
-        train_f1_mean = 0
-        val_f1_mean = 0
-        for run in range(runs):
-            tf.random.set_seed(run)
-            np.random.seed(run)
-
-            model = model_build(num_classes, vocab_size, maxlen)
-            history = train_model(model, train_pad_sequences, train_encoded_labels,
-                                  val_pad_sequences, val_encoded_labels,
-                                  batch_size=batch_size, epochs=epochs, patience=patience)
-            # Run report
-            for k, v in history.history.items():
-                accum.setdefault(k, []).append(np.array(v))
-
-            print(f'  run {run+1}/{runs} done | last val_loss={history.history["val_loss"][-1]:.4f}')
-
-            train_f1, val_f1 = predict_model(model, seq_lens, train_pad_sequences, train_encoded_labels, val_pad_sequences, val_encoded_labels)
-            train_f1_mean += train_f1
-            val_f1_mean += val_f1
-        train_f1_list.append(train_f1_mean / runs)
-        val_f1_list.append(val_f1_mean / runs)
-        # promediar por key -> numpy arrays (epochs,), respetando EarlyStopping
-        averaged = {}
-        for k, arrs in accum.items():
-            max_len = max(a.shape[0] for a in arrs)
-            stacked = np.full((len(arrs), max_len), np.nan, dtype=float)
-            for i, a in enumerate(arrs):
-                stacked[i, :a.shape[0]] = a
-            averaged[k] = np.nanmean(stacked, axis=0)  # media ignorando NaNs
-
-        results[num_words] = averaged
-
-        # calcular último val_loss válido (puede haber NaNs si ninguna run llegó a la última época)
-        val_loss_avg = averaged.get("val_loss")
-        if val_loss_avg is not None:
-            finite_idx = np.where(~np.isnan(val_loss_avg))[0]
-            last_val_loss = val_loss_avg[finite_idx[-1]] if finite_idx.size else np.nan
-        else:
-            last_val_loss = np.nan
-
-        print(f'Finished num_words={num_words}  |  averaged last val_loss={last_val_loss:.4f}')
-        f1_average[num_words] = {"Train": np.array(train_f1_list), "Val": np.array(val_f1_list)}
-    print(f1_average)
-    plot_loss(results, num_words_list)
-    plot_f1(f1_average, num_words_list)
-    return results
-
 
 def provar_embeddings(model_build: callable, preprocessed_data: Dict[str, np.ndarray|int], embedding_dims: list[int], 
                       batch_size: int = 32, epochs: int = 30, patience=5, runs=5):
@@ -290,6 +241,7 @@ def provar_embeddings(model_build: callable, preprocessed_data: Dict[str, np.nda
     vocab_size = preprocessed_data['vocab_size']
     maxlen = preprocessed_data['maxlen']
     num_classes = preprocessed_data['num_classes']
+    seq_lens = preprocessed_data['seq_lens']
 
     results = {}
     f1_average = {}
@@ -304,7 +256,7 @@ def provar_embeddings(model_build: callable, preprocessed_data: Dict[str, np.nda
             tf.random.set_seed(run)
             np.random.seed(run)
 
-            model = model_build(model, num_classes, vocab_size, maxlen, embedding_dim)
+            model = model_build(num_classes, vocab_size, maxlen, embedding_dim)
 
             history = train_model(model, train_pad_sequences, train_encoded_labels,
                                   val_pad_sequences, val_encoded_labels,
@@ -313,13 +265,10 @@ def provar_embeddings(model_build: callable, preprocessed_data: Dict[str, np.nda
             # Run report
             for k, v in history.history.items():
                 accum.setdefault(k, []).append(np.array(v))
-
-            print(f'  run {run+1}/{runs} done | last val_loss={history.history["val_loss"][-1]:.4f}')
-            train_f1, val_f1 = predict_model(model, maxlen, train_pad_sequences, train_encoded_labels, val_pad_sequences, val_encoded_labels)
+            train_f1, val_f1 = predict_model(model, seq_lens, train_pad_sequences, train_encoded_labels, val_pad_sequences, val_encoded_labels)
             train_f1_mean += train_f1
             val_f1_mean += val_f1
-        train_f1_list.append(train_f1_mean / runs)
-        val_f1_list.append(val_f1_mean / runs)
+            print(f'  run {run+1}/{runs} done | last val_loss={history.history["val_loss"][-1]:.4f}')
         # promediar por key -> numpy arrays (epochs,), respetando EarlyStopping
         averaged = {}
         for k, arrs in accum.items():
@@ -339,7 +288,7 @@ def provar_embeddings(model_build: callable, preprocessed_data: Dict[str, np.nda
             last_val_loss = np.nan
 
         print(f'Finished embedding_dim={embedding_dim}  |  averaged last val_loss={last_val_loss:.4f}')
-        f1_average[embedding_dim] = {"Train": np.array(train_f1_list), "Val": np.array(val_f1_list)}
+        f1_average[embedding_dim] = {"Train": np.array(train_f1_mean / runs), "Val": np.array(val_f1_mean / runs)}
 
     plot_loss(results, embedding_dims)
     plot_f1(f1_average, embedding_dims)
@@ -413,7 +362,7 @@ def plot_f1(f1_averaged: Dict[int, Dict[str, float]], names: list[int]):
     plt.tight_layout()
     plt.show()
 
-def calculate_class_weights(y: np.ndarray) -> dict[int, float]:
+def calculate_class_weights(datat: dict[str, np.ndarray|int]) -> dict[int, float]:
     """Calculate class weights to handle class imbalance. The formula used is:
 
     class_weight = total_samples / (num_classes * class_count)
@@ -421,13 +370,10 @@ def calculate_class_weights(y: np.ndarray) -> dict[int, float]:
     input: numpy array of one-hot encoded labels
     output: dictionary mapping class indices to weights
     """
-
-    # Convert one-hot encoded labels to class indices
-    y_indices = np.argmax(y, axis=1)
+    y_indices = preds_to_index(datat['train_y'], datat['seq_lens']['train'])
 
     # Get unique classes
     classes = np.unique(y_indices)
-
     # Compute class weights
     class_weights = compute_class_weight(class_weight='balanced', classes=classes, y=y_indices)
 
@@ -435,8 +381,9 @@ def calculate_class_weights(y: np.ndarray) -> dict[int, float]:
     class_weight_dict = {i: weight for i, weight in zip(classes, class_weights)}
     return class_weight_dict
 
-def probar_class_weights(model_build: callable, preprocessed_data: Dict[str, np.ndarray|int], 
-                         class_weights_list: list[dict[int, float]|None], batch_size: int=32, epochs: int=10, patience=5, runs=5):
+def probar_sample_weights(model_build: callable, preprocessed_data: Dict[str, np.ndarray|int], 
+                         sample_weights_list: list[list[list[float]]|None], batch_size: int=32, 
+                         epochs: int=10, patience=5, runs=5):
     '''
     Prueba diferentes dimensiones de embedding, promedia 'runs' ejecuciones,
     guarda histories promediados y grafica la evolución (train vs val) por epoch.
@@ -444,15 +391,22 @@ def probar_class_weights(model_build: callable, preprocessed_data: Dict[str, np.
     '''
     train_pad_sequences, train_encoded_labels = preprocessed_data['train_X'], preprocessed_data['train_y']
     val_pad_sequences, val_encoded_labels = preprocessed_data['val_X'], preprocessed_data['val_y']
+    test_pad_sequences, test_encoded_labels = preprocessed_data['test_X'], preprocessed_data['test_y']
     vocab_size = preprocessed_data['vocab_size']
     maxlen = preprocessed_data['maxlen']
     num_classes = preprocessed_data['num_classes']
 
     results = {}
-
-    for class_weights in class_weights_list:
-        print(f'-------Running class_weights={class_weights}  ({runs} runs)...---------')
+    f1_average = {}
+    test_evaluations = {}
+    for sample_weights in sample_weights_list:
+        print(f'-------Running sample_weights={sample_weights}  ({runs} runs)...---------')
         accum = {}  # recolecta listas de arrays (runs, epochs) por clave
+        train_f1_mean = 0
+        val_f1_mean = 0
+        test_loss_mean = 0
+        test_f1_mean = 0
+
         for run in range(runs):
             tf.random.set_seed(run)
             np.random.seed(run)
@@ -462,12 +416,18 @@ def probar_class_weights(model_build: callable, preprocessed_data: Dict[str, np.
             history = train_model(model, train_pad_sequences, train_encoded_labels,
                                   val_pad_sequences, val_encoded_labels,
                                   batch_size=batch_size, epochs=epochs, patience=patience,
-                                  class_weights=class_weights)
+                                  sample_weights=sample_weights)
 
             # Run report
             for k, v in history.history.items():
                 accum.setdefault(k, []).append(np.array(v))
-
+            train_f1, val_f1 = predict_model(model, preprocessed_data['seq_lens'], train_pad_sequences, train_encoded_labels, val_pad_sequences, val_encoded_labels)
+            train_f1_mean += train_f1
+            val_f1_mean += val_f1
+            test_loss = model.evaluate(test_pad_sequences, test_encoded_labels, verbose=0)
+            test_f1, _ = predict_model(model, preprocessed_data['seq_lens'], preprocessed_data['test_X'], preprocessed_data['test_y'], preprocessed_data['test_X'], preprocessed_data['test_y'])
+            test_loss_mean += test_loss
+            test_f1_mean += test_f1
             print(f'  run {run+1}/{runs} done | last val_loss={history.history["val_loss"][-1]:.4f}')
 
         # promediar por key -> numpy arrays (epochs,), respetando EarlyStopping
@@ -478,8 +438,8 @@ def probar_class_weights(model_build: callable, preprocessed_data: Dict[str, np.
             for i, a in enumerate(arrs):
                 stacked[i, :a.shape[0]] = a
             averaged[k] = np.nanmean(stacked, axis=0)  # media ignorando NaNs
-        keys = ['no_class_weights', 'with_class_weights']
-        if class_weights is None:
+        keys = ['no_sample_weights', 'with_sample_weights']
+        if sample_weights is None:
             key = keys[0]
             results[key] = averaged
         else:
@@ -495,7 +455,10 @@ def probar_class_weights(model_build: callable, preprocessed_data: Dict[str, np.
             last_val_loss = np.nan
 
         print(f'Finished embedding_dim={key}  |  averaged last val_loss={last_val_loss:.4f}')
-
-    plot(results, keys, runs)
-
+        f1_average[key] = {"Train": np.array(train_f1_mean / runs), "Val": np.array(val_f1_mean / runs)}
+        test_evaluations[key] = {"Test Loss": np.array(test_loss_mean / runs), "Test F1": np.array(test_f1_mean / runs)}
+    for k, v in test_evaluations.items():
+        print(f'Test evaluation for {k}: Loss={v["Test Loss"]:.4f}, F1 Score={v["Test F1"]:.4f}')
+    plot_loss(results, keys)
+    plot_f1(f1_average, keys)
     return results
