@@ -3,6 +3,7 @@ import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from typing import Counter, Tuple, Dict
+import keras
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.utils import to_categorical
@@ -11,7 +12,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding, GlobalMaxPooling1D, Dense 
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.utils.class_weight import compute_class_weight
-################################## Intent recognition ################################
+################################## Preprocess ################################
 def preprocess_intent_recognition(train_data: pd.DataFrame, val_data: pd.DataFrame, test_data: pd.DataFrame, num_words: int = None) -> Dict[str, np.ndarray|int]:
     '''
     Preprocess the datasets: tokenization, padding, label encoding and delate unseen cases in validation and test datasets.
@@ -91,212 +92,6 @@ def preprocess_intent_recognition(train_data: pd.DataFrame, val_data: pd.DataFra
         'vocab_size': len(tokenizer.word_index)
     }
     return data
-################################### Entity recognition ################################
-def preprocess_entity_recognition(train_data: pd.DataFrame, val_data: pd.DataFrame, test_data: pd.DataFrame, num_words: int = None) -> Dict[str, np.ndarray|int]:
-    ################## Separate sentences and labels ##############
-    #Remove quotes from sentences and labels
-    train_data = train_data.map(lambda x: x.replace('"', ''))
-    val_data = val_data.map(lambda x: x.replace('"', ''))
-    test_data = test_data.map(lambda x: x.replace('"', ''))
-    # Train data
-    train_sentences = train_data[0].tolist()
-    train_labels = train_data[1].tolist()
-    # Validation data
-    val_sentences = val_data[0].tolist()
-    val_labels = val_data[1].tolist()
-    # Test data
-    test_sentences = test_data[0].tolist()
-    test_labels = test_data[1].tolist()
-    ######## Tokenization and Padding of sentences ########
-    tokenizer = Tokenizer()
-    tokenizer.fit_on_texts(train_sentences)
-    # Train data
-    train_sequences = tokenizer.texts_to_sequences(train_sentences)
-    max_sequence_length = max(len(seq) for seq in train_sequences)
-    train_pad_sequences = pad_sequences(train_sequences, maxlen=max_sequence_length)
-    # Validation data
-    val_sequences = tokenizer.texts_to_sequences(val_sentences)
-    val_pad_sequences = pad_sequences(val_sequences, maxlen=max_sequence_length)
-    # Test data
-    test_sequences = tokenizer.texts_to_sequences(test_sentences)
-    test_pad_sequences = pad_sequences(test_sequences, maxlen=max_sequence_length)
-    ######## Label Encoding and One-Hot Encoding of labels ########
-    # Aux function to count unique entities in training labels
-    def count_unique_entities(y: list[str]) -> Tuple[int, Counter]:
-        flat_labels = []
-        for labels in y:
-            flat_labels += labels.split()
-        unique_entities = Counter(flat_labels)
-        return len(unique_entities), unique_entities
-    _, unique_entities = count_unique_entities(train_labels)
-    # Train data
-    label_encoder = LabelEncoder()
-    label_encoder.fit(list(unique_entities.keys()))
-    train_numerical_labels = [label_encoder.transform(labels.split()).tolist() for labels in train_labels]
-    train_pad_labels = pad_sequences(train_numerical_labels, maxlen=max_sequence_length, padding='post', value=label_encoder.transform(['O']))
-    # Aux function to remove sentences with unseen entities in val and test data
-    def remove_sentences(y: list[str], X: np.ndarray):
-        idx_to_remove = []
-        labels_to_remove = set()
-        for idx, labels in enumerate(y):
-            for label in labels.split():
-                if label not in unique_entities:
-                    idx_to_remove.append(idx)
-                    labels_to_remove.add(label)
-        labels = [elem for i, elem in enumerate(y) if i not in idx_to_remove]
-        sequences = [elem for i, elem in enumerate(X) if i not in idx_to_remove]
-        return labels, np.array(sequences)
-    # Test data
-    test_labels_cleaned, test_pad_sequences = remove_sentences(test_labels, test_pad_sequences)
-    test_numerical_labels = [label_encoder.transform(labels.split()).tolist() for labels in test_labels_cleaned]
-    test_pad_labels = pad_sequences(test_numerical_labels, maxlen=max_sequence_length, padding='post', value=label_encoder.transform(['O']))
-    # Validation data
-    val_labels_cleaned, val_pad_sequences = remove_sentences(val_labels, val_pad_sequences)
-    val_numerical_labels = [label_encoder.transform(labels.split()).tolist() for labels in val_labels_cleaned]
-    val_pad_labels = pad_sequences(val_numerical_labels, maxlen=max_sequence_length, padding='post', value=label_encoder.transform(['O']))
-    # One-Hot Encoding of labels
-    train_labels_one_hot = to_categorical(train_pad_labels, num_classes=len(label_encoder.classes_))
-    test_labels_one_hot = to_categorical(test_pad_labels, num_classes=len(label_encoder.classes_))
-    val_labels_one_hot = to_categorical(val_pad_labels, num_classes=len(label_encoder.classes_))
-    ##### Return preprocessed data and metadata ########
-    len_test_sequences = [len(seq) for seq in test_sequences]
-    data = {
-        'train_X': train_pad_sequences,
-        'train_y': train_labels_one_hot,
-        'val_X': val_pad_sequences,
-        'val_y': val_labels_one_hot,
-        'test_X': test_pad_sequences,
-        'test_y': test_labels_one_hot,
-        'num_classes': len(label_encoder.classes_),
-        'maxlen': max_sequence_length,
-        'vocab_size': len(tokenizer.word_index)
-    }
-    return data
-################################### Entity recognition ################################
-def preprocess_entity_recognition(train_data: pd.DataFrame, val_data: pd.DataFrame, test_data: pd.DataFrame, num_words: int = None) -> Dict[str, np.ndarray|int]:
-    ################## Separate sentences and labels ##############
-    #Remove quotes from sentences and labels
-    train_data = train_data.map(lambda x: x.replace('"', ''))
-    val_data = val_data.map(lambda x: x.replace('"', ''))
-    test_data = test_data.map(lambda x: x.replace('"', ''))
-    # Train data
-    train_sentences = train_data[0].tolist()
-    train_labels = train_data[1].tolist()
-    # Validation data
-    val_sentences = val_data[0].tolist()
-    val_labels = val_data[1].tolist()
-    # Test data
-    test_sentences = test_data[0].tolist()
-    test_labels = test_data[1].tolist()
-    ######## Tokenization and Padding of sentences ########
-    tokenizer = Tokenizer(num_words)
-    tokenizer.fit_on_texts(train_sentences)
-    # Train data
-    train_sequences = tokenizer.texts_to_sequences(train_sentences)
-    max_sequence_length = max(len(seq) for seq in train_sequences)
-    train_pad_sequences = pad_sequences(train_sequences, maxlen=max_sequence_length)
-    # Validation data
-    val_sequences = tokenizer.texts_to_sequences(val_sentences)
-    val_pad_sequences = pad_sequences(val_sequences, maxlen=max_sequence_length)
-    # Test data
-    test_sequences = tokenizer.texts_to_sequences(test_sentences)
-    test_pad_sequences = pad_sequences(test_sequences, maxlen=max_sequence_length)
-    ######## Label Encoding and One-Hot Encoding of labels ########
-    # Aux function to count unique entities in training labels
-    def count_unique_entities(y: list[str]) -> Tuple[int, Counter]:
-        flat_labels = []
-        for labels in y:
-            flat_labels += labels.split()
-        unique_entities = Counter(flat_labels)
-        return len(unique_entities), unique_entities
-    _, unique_entities = count_unique_entities(train_labels)
-    # Train data
-    label_encoder = LabelEncoder()
-    label_encoder.fit(list(unique_entities.keys()))
-    train_numerical_labels = [label_encoder.transform(labels.split()).tolist() for labels in train_labels]
-    train_pad_labels = pad_sequences(train_numerical_labels, maxlen=max_sequence_length, padding='post', value=label_encoder.transform(['O']))
-    # Aux function to remove sentences with unseen entities in val and test data
-    def remove_sentences(y: list[str], X: np.ndarray):
-        idx_to_remove = []
-        labels_to_remove = set()
-        for idx, labels in enumerate(y):
-            for label in labels.split():
-                if label not in unique_entities:
-                    idx_to_remove.append(idx)
-                    labels_to_remove.add(label)
-        labels = [elem for i, elem in enumerate(y) if i not in idx_to_remove]
-        sequences = [elem for i, elem in enumerate(X) if i not in idx_to_remove]
-        return labels, np.array(sequences)
-    # Test data
-    test_labels_cleaned, test_pad_sequences = remove_sentences(test_labels, test_pad_sequences)
-    test_numerical_labels = [label_encoder.transform(labels.split()).tolist() for labels in test_labels_cleaned]
-    test_pad_labels = pad_sequences(test_numerical_labels, maxlen=max_sequence_length, padding='post', value=label_encoder.transform(['O']))
-    # Validation data
-    val_labels_cleaned, val_pad_sequences = remove_sentences(val_labels, val_pad_sequences)
-    val_numerical_labels = [label_encoder.transform(labels.split()).tolist() for labels in val_labels_cleaned]
-    val_pad_labels = pad_sequences(val_numerical_labels, maxlen=max_sequence_length, padding='post', value=label_encoder.transform(['O']))
-    # One-Hot Encoding of labels
-    train_labels_one_hot = to_categorical(train_pad_labels, num_classes=len(label_encoder.classes_))
-    test_labels_one_hot = to_categorical(test_pad_labels, num_classes=len(label_encoder.classes_))
-    val_labels_one_hot = to_categorical(val_pad_labels, num_classes=len(label_encoder.classes_))
-    ##### Return preprocessed data and metadata ########
-    len_test_sequences = [len(seq) for seq in test_sequences]
-    data = {
-        'train_X': train_pad_sequences,
-        'train_y': train_labels_one_hot,
-        'val_X': val_pad_sequences,
-        'val_y': val_labels_one_hot,
-        'test_X': test_pad_sequences,
-        'test_y': test_labels_one_hot,
-        'num_classes': len(label_encoder.classes_),
-        'maxlen': max_sequence_length,
-        'vocab_size': len(tokenizer.word_index)
-    }
-    return data
-################################### Model training ################################
-def train_model(model: tf.keras.Model, train_pad_sequences: np.ndarray, train_encoded_labels: np.ndarray, 
-                val_pad_sequences: np.ndarray, val_encoded_labels: np.ndarray, class_weights: dict = None, 
-                batch_size: int = 32, epochs: int = 30, patience: int = 5)-> tf.keras.callbacks.History:
-    '''
-    Train the model with EarlyStopping based on validation loss.
-        Args:
-            model (tf.keras.Model): The Keras model to be trained.
-            train_pad_sequences (np.ndarray): Padded training sequences.
-            train_encoded_labels (np.ndarray): One-hot encoded training labels.
-            val_pad_sequences (np.ndarray): Padded validation sequences.
-            val_encoded_labels (np.ndarray): One-hot encoded validation labels.
-            class_weights (dict): Optional dictionary mapping class indices to weights for handling class imbalance.
-            batch_size (int): Number of samples per gradient update.
-            epochs (int): Maximum number of epochs to train the model.
-            patience (int): Number of epochs with no improvement after which training will be stopped.
-        Returns:
-            history (tf.keras.callbacks.History): A record of training loss values and metrics values at successive epochs.
-    '''
-    # Compile the model with F1 Score metric
-    metrics = tf.keras.metrics.F1Score(average='macro')
-    # Compile the model
-    model.compile(
-        optimizer='adam',
-        loss='categorical_crossentropy',
-        metrics=[metrics])
-    # Early stopping callback
-    early_stop = EarlyStopping(
-        monitor='val_loss',        # o 'val_f1_score'
-        patience= patience,                # detener tras 3 épocas sin mejora
-        restore_best_weights=True,
-        verbose=0)
-    # Train the model
-    history = model.fit(
-        train_pad_sequences,
-        train_encoded_labels,
-        batch_size=batch_size,
-        epochs=epochs,
-        validation_data=(val_pad_sequences, val_encoded_labels),
-        callbacks=[early_stop],
-        verbose=0,
-        class_weight=class_weights)
-    return history
-
 ################################### Model training ################################
 def train_model(model: tf.keras.Model, train_pad_sequences: np.ndarray, train_encoded_labels: np.ndarray, 
                 val_pad_sequences: np.ndarray, val_encoded_labels: np.ndarray, class_weights: dict = None, 
