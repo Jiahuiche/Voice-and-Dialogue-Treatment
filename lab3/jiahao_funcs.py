@@ -72,7 +72,7 @@ def preprocess_entity_recognition(train_data: pd.DataFrame, val_data: pd.DataFra
     test_sentences = test_data[0].tolist()
     test_labels = test_data[1].tolist()
     ######## Tokenization and Padding of sentences ########
-    tokenizer = Tokenizer()
+    tokenizer = Tokenizer(300)
     tokenizer.fit_on_texts(train_sentences)
     # Train data
     train_sequences = tokenizer.texts_to_sequences(train_sentences)
